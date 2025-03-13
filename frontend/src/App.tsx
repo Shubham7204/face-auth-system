@@ -2,13 +2,10 @@ import { useState, useEffect, useRef } from 'react';
 
 interface AuthState {
   status: string;
-  aadhaar_score: number;
-  bank_score: number;
-  avg_score: number;
+  face_score: number;
   threshold: number;
   verification_details?: {
-    aadhaar_verified: boolean;
-    bank_verified: boolean;
+    face_verified: boolean;
     timestamp: string;
   };
   auth_result?: {
@@ -136,37 +133,15 @@ function App() {
           </div>
 
           <div className="bg-[#e0f2fe] p-6 rounded-lg text-left">
-            {/* Aadhaar Score */}
-            <div className="mb-4">
-              <div className="mb-1">Aadhaar Match: {authState.aadhaar_score}%</div>
-              <div className="h-3 bg-gray-200 rounded-full relative">
-                <div 
-                  className="h-full bg-[#075985] rounded-full transition-all duration-300"
-                  style={{ width: `${authState.aadhaar_score}%` }}
-                />
-              </div>
-            </div>
-
-            {/* Bank Score */}
-            <div className="mb-4">
-              <div className="mb-1">Bank Match: {authState.bank_score}%</div>
-              <div className="h-3 bg-gray-200 rounded-full relative">
-                <div 
-                  className="h-full bg-[#075985] rounded-full transition-all duration-300"
-                  style={{ width: `${authState.bank_score}%` }}
-                />
-              </div>
-            </div>
-
-            {/* Overall Score */}
+            {/* Face Score */}
             <div className="mb-4">
               <div className="mb-1 text-lg font-bold text-[#075985]">
-                Overall Match: {authState.avg_score}%
+                Face Match Score: {authState.face_score}%
               </div>
               <div className="h-3 bg-gray-200 rounded-full relative">
                 <div 
                   className="h-full bg-[#075985] rounded-full transition-all duration-300"
-                  style={{ width: `${authState.avg_score}%` }}
+                  style={{ width: `${authState.face_score}%` }}
                 />
                 <div 
                   className="absolute top-[-4px] w-0.5 h-5 bg-[#dc2626]"

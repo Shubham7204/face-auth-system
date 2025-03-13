@@ -9,9 +9,8 @@ app = Flask(__name__)
 CORS(app)
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-AADHAAR_PATH = os.path.join(BASE_DIR, "stored_images", "user_aadhaar.png")
 BANK_PATH = os.path.join(BASE_DIR, "stored_images", "user_bank.jpeg")
-THRESHOLD = 0.8
+THRESHOLD = 0.65
 
 def test_image(image_path, label):
     try:
@@ -26,14 +25,10 @@ def test_image(image_path, label):
         print(f"❌ Error loading {label} image: {str(e)}")
         return False
 
-print(f"Looking for Aadhaar image at: {AADHAAR_PATH}")
 print(f"Looking for Bank image at: {BANK_PATH}")
-print(f"Aadhaar image exists: {os.path.exists(AADHAAR_PATH)}")
 print(f"Bank image exists: {os.path.exists(BANK_PATH)}")
 
 print("\n--- Verifying Stored Images ---")
-if not test_image(AADHAAR_PATH, "Aadhaar"):
-    print("⚠️ Aadhaar image is invalid or missing")
 if not test_image(BANK_PATH, "Bank"):
     print("⚠️ Bank image is invalid or missing")
 print("----------------------------\n")
@@ -58,63 +53,45 @@ def verify_user():
     
     try:
         try:
-            print(f"Attempting Aadhaar verification with live image: {live_image_path}")
-            aadhaar_result = DeepFace.verify(
-                img1_path=live_image_path, 
-                img2_path=AADHAAR_PATH, 
-                model_name="Facenet",
-                enforce_detection=False
-            )
-            aadhaar_score = round((1 - aadhaar_result["distance"]) * 100, 2)
-            print(f"Aadhaar verification successful - Score: {aadhaar_score}%")
-        except Exception as e:
-            print(f"Aadhaar verification failed: {str(e)}")
-            aadhaar_score = 0
-        
-        try:
-            print(f"Attempting Bank verification with live image: {live_image_path}")
-            bank_result = DeepFace.verify(
+            print(f"Attempting face verification with live image: {live_image_path}")
+            result = DeepFace.verify(
                 img1_path=live_image_path, 
                 img2_path=BANK_PATH, 
                 model_name="Facenet",
                 enforce_detection=False
             )
-            bank_score = round((1 - bank_result["distance"]) * 100, 2)
-            print(f"Bank verification successful - Score: {bank_score}%")
+            face_score = round((1 - result["distance"]) * 100, 2)
+            print(f"Face verification successful - Score: {face_score}%")
         except Exception as e:
-            print(f"Bank verification failed: {str(e)}")
-            bank_score = 0
+            print(f"Face verification failed: {str(e)}")
+            face_score = 0
         
-        avg_score = round((aadhaar_score + bank_score) / 2, 2)
         threshold = round(THRESHOLD * 100, 2)
         
         response_data = {
-            "aadhaar_score": aadhaar_score,
-            "bank_score": bank_score,
-            "avg_score": avg_score,
+            "face_score": face_score,
             "threshold": threshold,
             "verification_details": {
-                "aadhaar_verified": aadhaar_score >= threshold,
-                "bank_verified": bank_score >= threshold,
+                "face_verified": face_score >= threshold,
                 "timestamp": import_time.strftime("%Y-%m-%d %H:%M:%S")
             }
         }
         
-        if aadhaar_score >= threshold and bank_score >= threshold:
+        if face_score >= threshold:
             response_data["status"] = "success"
             response_data["message"] = "Authentication Successful"
             response_data["auth_result"] = {
                 "success": True,
-                "score": avg_score,
-                "log_message": f"User authenticated successfully with score {avg_score}%"
+                "score": face_score,
+                "log_message": f"User authenticated successfully with score {face_score}%"
             }
         else:
             response_data["status"] = "failed"
             response_data["message"] = "Authentication Failed"
             response_data["auth_result"] = {
                 "success": False,
-                "score": avg_score,
-                "log_message": f"Authentication failed. Score {avg_score}% below threshold {threshold}%"
+                "score": face_score,
+                "log_message": f"Authentication failed. Score {face_score}% below threshold {threshold}%"
             }
         
         return jsonify(response_data)
