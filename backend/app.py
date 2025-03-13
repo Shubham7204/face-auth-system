@@ -4,12 +4,14 @@ import os
 from flask_cors import CORS
 import cv2
 import time as import_time
+import shutil
 
 app = Flask(__name__)
 CORS(app)
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 BANK_PATH = os.path.join(BASE_DIR, "stored_images", "user_bank.jpeg")
+LAST_VERIFIED_PATH = os.path.join(BASE_DIR, "stored_images", "last_verified.jpg")
 THRESHOLD = 0.65
 
 def test_image(image_path, label):
@@ -23,6 +25,16 @@ def test_image(image_path, label):
             return True
     except Exception as e:
         print(f"❌ Error loading {label} image: {str(e)}")
+        return False
+
+def save_verified_image(temp_image_path):
+    """Save the successfully verified image for future verification"""
+    try:
+        shutil.copy2(temp_image_path, LAST_VERIFIED_PATH)
+        print(f"✅ Saved verified image for future use at: {LAST_VERIFIED_PATH}")
+        return True
+    except Exception as e:
+        print(f"❌ Error saving verified image: {str(e)}")
         return False
 
 print(f"Looking for Bank image at: {BANK_PATH}")
@@ -52,11 +64,16 @@ def verify_user():
         return jsonify({"status": "error", "message": "Could not process captured image"}), 400
     
     try:
+        # Determine which reference image to use
+        is_first_login = not os.path.exists(LAST_VERIFIED_PATH)
+        reference_image = BANK_PATH if is_first_login else LAST_VERIFIED_PATH
+        verification_type = "bank" if is_first_login else "previous"
+        
         try:
-            print(f"Attempting face verification with live image: {live_image_path}")
+            print(f"Attempting face verification with {verification_type} image")
             result = DeepFace.verify(
                 img1_path=live_image_path, 
-                img2_path=BANK_PATH, 
+                img2_path=reference_image, 
                 model_name="Facenet",
                 enforce_detection=False
             )
@@ -71,8 +88,10 @@ def verify_user():
         response_data = {
             "face_score": face_score,
             "threshold": threshold,
+            "is_first_login": is_first_login,
             "verification_details": {
                 "face_verified": face_score >= threshold,
+                "verification_type": verification_type,
                 "timestamp": import_time.strftime("%Y-%m-%d %H:%M:%S")
             }
         }
@@ -85,6 +104,10 @@ def verify_user():
                 "score": face_score,
                 "log_message": f"User authenticated successfully with score {face_score}%"
             }
+            
+            # If this was a successful verification, save the image for future use
+            if save_verified_image(live_image_path):
+                response_data["verification_details"]["image_saved"] = True
         else:
             response_data["status"] = "failed"
             response_data["message"] = "Authentication Failed"
@@ -103,6 +126,22 @@ def verify_user():
     finally:
         if os.path.exists(live_image_path):
             os.remove(live_image_path)
+
+@app.route("/reset", methods=["POST"])
+def reset_verification():
+    """Reset the verification by removing the last verified image"""
+    try:
+        if os.path.exists(LAST_VERIFIED_PATH):
+            os.remove(LAST_VERIFIED_PATH)
+        return jsonify({
+            "status": "success",
+            "message": "Verification reset successful"
+        })
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": f"Error resetting verification: {str(e)}"
+        })
 
 @app.route("/test", methods=["GET"])
 def test_endpoint():

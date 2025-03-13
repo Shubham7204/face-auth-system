@@ -4,9 +4,12 @@ interface AuthState {
   status: string;
   face_score: number;
   threshold: number;
+  is_first_login: boolean;
   verification_details?: {
     face_verified: boolean;
+    verification_type: string;
     timestamp: string;
+    image_saved?: boolean;
   };
   auth_result?: {
     success: boolean;
@@ -48,7 +51,16 @@ function App() {
     }
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      // Call reset endpoint to clear the last verified image
+      await fetch('http://127.0.0.1:5000/reset', {
+        method: 'POST',
+      });
+    } catch (error) {
+      console.error('Error resetting verification:', error);
+    }
+    
     localStorage.removeItem('authState');
     setAuthState(null);
   };
@@ -130,13 +142,20 @@ function App() {
               : 'bg-[#dc2626] text-white'
           }`}>
             {authState.auth_result?.log_message}
+            {authState.is_first_login && authState.status === 'success' && (
+              <div className="text-sm mt-2">
+                ✅ First login successful! Your face will be used for future verifications.
+              </div>
+            )}
           </div>
 
           <div className="bg-[#e0f2fe] p-6 rounded-lg text-left">
-            {/* Face Score */}
             <div className="mb-4">
               <div className="mb-1 text-lg font-bold text-[#075985]">
                 Face Match Score: {authState.face_score}%
+                <span className="text-sm font-normal ml-2">
+                  ({authState.verification_details?.verification_type === 'bank' ? 'Bank Photo' : 'Previous Login'})
+                </span>
               </div>
               <div className="h-3 bg-gray-200 rounded-full relative">
                 <div 
